@@ -3,7 +3,11 @@ package main
 import (
 	"encoding/json"
 	"example/users-api-go/domain"
+	"fmt"
 	"net/http"
+	"strconv"
+
+	"github.com/gorilla/mux"
 )
 
 var users []domain.User = []domain.User{
@@ -12,10 +16,13 @@ var users []domain.User = []domain.User{
 }
 
 func main() {
-	http.HandleFunc("/users", HandleGetUsers)
-	http.HandleFunc("/users", HandleGetUser)
+	fmt.Println("Servidor rodando na porta 80")
+	r := mux.NewRouter()
 
-	http.ListenAndServe(":80", nil)
+	r.HandleFunc("/users", HandleGetUsers).Methods("GET")
+	r.HandleFunc("/users/{id}", HandleGetUser).Methods("GET")
+
+	http.ListenAndServe(":80", r)
 }
 
 func HandleGetUsers(w http.ResponseWriter, r *http.Request) {
@@ -29,7 +36,21 @@ func HandleGetUser(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	user := r.URL.Query().Get("id")
+	vars := mux.Vars(r)
+	idStr := vars["id"]
 
-	json.NewEncoder(w).Encode(user)
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid parameter value"})
+		return
+	}
+
+	for i := range users {
+		if users[i].ID == id {
+			json.NewEncoder(w).Encode(users[i])
+			return
+		}
+	}
+
+	json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 }
