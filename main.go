@@ -23,6 +23,7 @@ func main() {
 	r.HandleFunc("/users/{id}", HandleGetUser).Methods("GET")
 	r.HandleFunc("/users", HandleAddUser).Methods("POST")
 	r.HandleFunc("/users/{id}", HandleEditUser).Methods("PATCH")
+	r.HandleFunc("/users/{id}", HandleRemoveUser).Methods("DELETE")
 
 	http.ListenAndServe(":80", r)
 }
@@ -139,6 +140,41 @@ func HandleEditUser(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "user edited successfully",
-		"user":    *userDB},
-	)
+		"user":    *userDB,
+	})
+}
+
+func HandleRemoveUser(w http.ResponseWriter, r *http.Request) {
+	w.Header().Add("Content-Type", "application/json")
+
+	vars := mux.Vars(r)
+	idStr := vars["id"]
+
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]string{"error": "invalid parameter value"})
+		return
+	}
+
+	var removedUser *domain.User
+
+	for i := range users {
+		if users[i].ID == id {
+			removedUser = &users[i]
+
+			users = append(users[:i], users[i+1:]...)
+
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"message": "user removed successfully",
+				"user":    *removedUser,
+			})
+
+			return
+		}
+	}
+
+	w.WriteHeader(http.StatusBadRequest)
+	json.NewEncoder(w).Encode(map[string]string{"error": "user not found"})
 }
